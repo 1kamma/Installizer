@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net5.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+
+  <ItemGroup>
+    <ProjectReference Include="..\Installizer\Installizer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+      <Resource Include="res\Choco.svg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotNetProjects.SVGImage" Version="4.1.97" />
+    <PackageReference Include="SharpVectors" Version="1.7.6" />
+    <PackageReference Include="SVGImage" Version="3.0.0" />
+  </ItemGroup>
+
+
+</Project>

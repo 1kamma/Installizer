@@ -1,0 +1,44 @@
+<Window x:Class="Inst.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Inst"
+        xmlns:svgc="http://sharpvectors.codeplex.com/svgc/"
+        xmlns:svg1="clr-namespace:SVGImage.SVG;assembly=DotNetProjects.SVGImage"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="524" Width="1059">
+    <Window.Resources>
+        <svg1:SvgIconConverter x:Key="SvgIconConverterExtension"/>
+    </Window.Resources>
+    <TabControl>
+        <TabItem Header="Installations" FontFamily="Alef">
+            <Grid Background="#FFE5E5E5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <DockPanel HorizontalAlignment="Left" Height="480" LastChildFill="False" VerticalAlignment="Center" Width="207">
+                    <Button DockPanel.Dock="Top" Height="50" Click="Button_Click" ToolTip="To modify the apps that will be installed, Push Right Click">
+                        <Button.Content>
+                            <Canvas Width="207" Height="50" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Canvas  Opacity="0.40">
+                                    <svgc:SvgViewbox Source=".\res\Choco.svg" Height="50" Width="207" Stretch="Fill" Opacity="40" />
+                                </Canvas>
+                                <TextBlock Text="Chocolatey" Canvas.Left="73" Canvas.Top="17"  />
+
+                            </Canvas>
+                        </Button.Content>
+                    </Button>
+                    <Button Content="Task Scheduler" DockPanel.Dock="Top"  Width="207" Height="50" Click="Button_Click_1"/>
+                    <Button Height="50"  DockPanel.Dock="Top" Content="Winget" />
+                    <Button Content="Activate Windows" DockPanel.Dock="Top"  Height="50"/>
+                    <Button Content="Office" DockPanel.Dock="Top" Height="50" />
+                    
+                </DockPanel>
+            </Grid>
+        </TabItem>
+        <TabItem Header="TabItem">
+            <Grid Background="#FFE5E5E5"/>
+        </TabItem>
+    </TabControl>
+</Window>

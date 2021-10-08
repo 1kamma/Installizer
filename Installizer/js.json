@@ -1,0 +1,28 @@
+{
+    "TaskName": "Js",
+    "TaskPath": "f",
+    "actions": [
+        ["C:\\Program Files\\PowerShell\\7\\pwsh.exe", null, null]
+    ],
+    "triggers": {
+        "weekly": {
+            "day": [1, 2, 3],
+            "hour": ["12:30"]
+        },
+        "logon": true,
+        "dayly": ["12:30"]
+    },
+    "description": "textual",
+    "author": "text",
+    "settings": {
+        "batteries": true,
+        "enable": true,
+        "startwhenavailibale": true,
+        "hidden": false
+    },
+    "principal": {
+        "highest": false,
+        "service": false,
+        "user": ""
+    }
+}

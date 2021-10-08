@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Installizer": {
+      "commandName": "Project",
+      "remoteDebugEnabled": false
+    }
+  }
+}
