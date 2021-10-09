@@ -255,6 +255,15 @@ namespace Installizer {
 
         //    trigger.StartBoundary = new DateTime[dates.Length];
         //}
+        #region Exports
+        private static string TaskNameExport(Tasker task) {
+            return task.TaskName;
+        }
+        private static string TaskPathExport(Tasker task) {
+            return task.TaskPath;
+        }
+        //private static string
+        #endregion
         #region Jsoner
         public static void ExportJson(string path, Tasker task) {
             var tas = Newtonsoft.Json.JsonConvert.SerializeObject(task, Newtonsoft.Json.Formatting.Indented);
