@@ -33,12 +33,30 @@
                     <Button Height="50"  DockPanel.Dock="Top" Content="Winget" />
                     <Button Content="Activate Windows" DockPanel.Dock="Top"  Height="50"/>
                     <Button Content="Office" DockPanel.Dock="Top" Height="50" />
-                    
+
                 </DockPanel>
             </Grid>
         </TabItem>
         <TabItem Header="TabItem">
             <Grid Background="#FFE5E5E5"/>
+        </TabItem>
+        <TabItem Header="Tweaks">
+            <Grid Background="#FFE5E5E5">
+                <DockPanel HorizontalAlignment="Left" Height="480" LastChildFill="False" VerticalAlignment="Center" Width="207">
+                    <Button Content="Task Scheduler" DockPanel.Dock="Top"  Width="207" Height="50"/>
+                </DockPanel>
+                <DockPanel HorizontalAlignment="Left" Height="480" LastChildFill="False" VerticalAlignment="Center" Width="Auto">
+                    <Grid>
+
+                        <TextBox HorizontalAlignment="Left" Margin="273,10,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="780" TextChanged="TaskName_TextChanged" ToolTip="Task Name" />
+                        <TextBox HorizontalAlignment="Left" Margin="273,30,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="780" TextChanged="TaskPath_TextChanged" ToolTip="Task Paths" />
+                        <TextBox HorizontalAlignment="Left" Margin="273,50,0,0" TextWrapping="Wrap" VerticalAlignment="Top" IsReadOnly="True" Width="680" TextChanged="TaskPath_TextChanged"  Name="Pathus"/>
+                        <TextBox HorizontalAlignment="Left" Margin="273,70,0,0" TextWrapping="Wrap" VerticalAlignment="Top" IsReadOnly="True" Width="380" TextChanged="Argusy_TextChanged"  Name="Argusy"/>
+                        <Button Content="Button" HorizontalAlignment="Left" Margin="963,50,0,0" Width="90" VerticalAlignment="Top" Click="Button_Click_2"/>
+
+                    </Grid>
+                </DockPanel>
+            </Grid>
         </TabItem>
     </TabControl>
 </Window>

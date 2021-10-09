@@ -1,1 +1,13 @@
 */bin/
+*/bin
+bin/*
+*/Debug
+*/*/Debug
+.vs/
+*/*/bin/
+/bin/
+.vs/*
+.vs/*
+/.vs/*
+/Inst/bin/*
+*/*/Release/
