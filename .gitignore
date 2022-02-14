@@ -13,3 +13,9 @@ bin/*
 /Inst/obj
 /Installizer/obj
 */*/Release/
+desktop.ini
+*/desktop.ini
+*/*/desktop.ini
+*/*/*/desktop.ini
+*/*/*/*/desktop.ini
+*/*/*/*/*/desktop.ini
