@@ -1,325 +1,386 @@
 using Microsoft.Win32.TaskScheduler;
-using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 namespace Installizer {
-    public class Tasker {
+    public class TaskerBase {
+        public Dictionary<string, List<List<object>>> Triggers { get; set; }
+        public Dictionary<string, bool> Principal { get; set; }
+        public List<string[]> Actions { get; set; }
+        public string TaskName { get; private set; }
+        public string TaskDescription { get; set; }
+        public string TaskPath { get; private set; }
+        public Dictionary<string, bool> Settings { get; set; }
 
-        #region Constructors
-        private string TaskName;
-        private string TaskPath;
-        private TaskService serv;
-        private TaskDefinition taskDefinition;
-        public Tasker(string TaskName, string TaskPath) {
-            this.TaskName = TaskName;
-            this.TaskPath = TaskPath;
-            this.serv = new();
-            this.taskDefinition = this.serv.NewTask();
+        public TaskerBase(string taskName, string taskPath) {
+            TaskName = taskName;
+            TaskPath = taskPath;
         }
-        public Tasker(string TaskName, string TaskPath, string description) {
-            this.TaskName = TaskName;
-            this.TaskPath = TaskPath;
-            this.serv = new();
-            this.taskDefinition = this.serv.NewTask();
-            TaskDescribe(description);
+
+        public static string[] GetEventNameLog(string subscription) {
+            System.Text.RegularExpressions.Regex regex = new(@"(?<=\"")[A-z/\-]+(?=\"")|(?<=EventID=)\d+");
+            System.Text.RegularExpressions.Regex regex1 = new(@"(<=\:\s)[^[,$]]+");
+            return regex.IsMatch(subscription) ? regex.Matches(subscription).Select(match => { return match.Groups[1].Value; }).ToArray() : regex1.Matches(subscription).Select(match => { return match.Groups[1].Value; }).ToArray();
+        }
+    }
+    /// <summary>
+    /// This Tasker Class and object is a connection to the TaskScheduler API.
+    /// All the data will be saved first as local object, and then will be convert to the task scheduler api
+    /// </summary>
+    public class Tasker {
+        #region Properties
+        /// <summary>
+        /// Collection of all the triggers that will start the task. public property
+        /// </summary>
+        public TriggerCollection Triggers { get; private set; }
+        /// <summary>
+        /// Principal setting of how and with what permission and level the task will run. public property
+        /// </summary>
+        public TaskPrincipal Principal { get; private set; }
+        /// <summary>
+        /// Principal setting of how and with what permission and level the task will run. private property
+        /// </summary>
+        private TaskPrincipal _principal { set => Principal = value; }
+        public ActionCollection Actions { get; private set; }
+        public string TaskName { get; private set; }
+        public string TaskDescription { get; set; }
+        public string TaskPath { get; private set; }
+
+        public TaskSettings Settings { get; private set; }
+        private TaskDefinition _taskDefinition { get; set; }
+        public string Author { get; set; }
+        private TaskService ScTask { get; set; }
+        private TaskerBase taskerBase { get; set; }
+        public enum Repitition {
+            None,
+            Daily,
+            Weekly,
+            Monthly
+        }
+        public enum StartAt {
+            None,
+            Logon,
+            Event,
+            Startup
         }
         #endregion
-        #region Object Modifications
-        /// <summary>
-        /// This function adds description to the scheduled task.
-        /// </summary>
-        /// <param name="description"> the description text to add</param>
-        public void TaskDescribe(string description) {
-            this.taskDefinition.RegistrationInfo.Description = description;
-            this.taskDefinition.RegistrationInfo.Author = $"{System.Environment.MachineName}\\{System.Environment.UserName}";
-        }
-        /// <summary>
-        /// This function defines the settings for the scheduled task
-        /// </summary>
-        /// <param name="batteries">runs the task on battery. the default is true</param>
-        /// <param name="enable">enables the task. the default is true</param>
-        /// <param name="startwhenavailibale">starts the task if it missed, when the computer is availible. the defult is true</param>
-        /// <param name="hidden">hides the running. the default is false</param>
-        public void TaskSettingsDefine(bool batteries = true, bool enable = true, bool startwhenavailibale = true, bool hidden = false) {
-            this.taskDefinition.Settings.DisallowStartIfOnBatteries = !batteries;
-            this.taskDefinition.Settings.StopIfGoingOnBatteries = !batteries;
-            this.taskDefinition.Settings.Enabled = enable;
-            this.taskDefinition.Settings.StartWhenAvailable = startwhenavailibale;
-            this.taskDefinition.Settings.Hidden = hidden;
-        }
 
-        public void TaskPrincipal(bool highest = false, bool service = false, string user = "") {
-            if (highest) {
-                this.taskDefinition.Principal.RunLevel = TaskRunLevel.Highest;
-            } else {
-                this.taskDefinition.Principal.RunLevel = TaskRunLevel.LUA;
-            }
-            if (service) {
-                this.taskDefinition.Principal.LogonType = TaskLogonType.S4U;
-            } else {
-                this.taskDefinition.Principal.LogonType = TaskLogonType.Password;
-            }
-            if (user != "") {
-                this.taskDefinition.Principal.Id = user;
-            } else {
-                this.taskDefinition.Principal.Id = $"{System.Environment.MachineName}\\{System.Environment.UserName}";
-            }
+        #region Constructors
+        public Tasker(JsonConstructorAttribute jsonConstructor) {
+            //foreach(var trig in jsonConstructor.)
+
         }
-        public void TaskEventTriggerDefine(string logName, string logSource, int eventID) {
-            EventTrigger trigger = new();
-            trigger.Enabled = true;
-            trigger.SetBasic(logName, logSource, eventID);
-            this.taskDefinition.Triggers.Add(trigger);
+        public Tasker(string Name, string Path) {
+            taskerBase = new(Name, Path);
+            TaskName = Name;
+            TaskPath = Path;
+            ScTask = new();
+            Author = $"{Environment.MachineName}\\{Environment.UserName}";
+            _taskDefinition = ScTask.NewTask();
+            Triggers = _taskDefinition.Triggers;
+            Actions = _taskDefinition.Actions;
+            Settings = _taskDefinition.Settings;
+            Principal = _taskDefinition.Principal;
         }
-        public void TaskDailyTriggerrDefine(string hour) {
-            DailyTrigger trigger = new();
-            trigger.Enabled = true;
-            int h = int.Parse(hour.Split(":")[0]);
-            int m = int.Parse(hour.Split(":")[1]);
-            trigger.StartBoundary = System.DateTime.Today + System.TimeSpan.FromHours(h) + System.TimeSpan.FromMinutes(m);
-            //trigger.Repetition.Duration = System.TimeSpan.FromDays(1);
-            //trigger.Repetition.Interval = System.TimeSpan.FromMinutes(1);
-            this.taskDefinition.Triggers.Add(trigger);
+        public Tasker(string Name, string Path, string description = "") {
+            taskerBase = new(Name, Path);
+            TaskName = Name;
+            TaskPath = Path;
+            TaskDescription = description;
+            ScTask = new();
+            Author = $"{Environment.MachineName}\\{Environment.UserName}";
+            _taskDefinition = ScTask.NewTask();
+            Triggers = _taskDefinition.Triggers;
+            Actions = _taskDefinition.Actions;
+            Settings = _taskDefinition.Settings;
+            Principal = _taskDefinition.Principal;
         }
-        public void TaskDailyTriggersDefine(string[] hours) {
+        public Tasker(string Name, string Path, TaskDefinition taskDefinition) {
+            taskerBase = new(Name, Path);
+            TaskName = Name;
+            TaskPath = Path;
+            ScTask = new();
+            _taskDefinition = taskDefinition;
+            Triggers = _taskDefinition.Triggers;
+            Author = _taskDefinition.RegistrationInfo.Author;
+            Actions = _taskDefinition.Actions;
+            TaskDescription = _taskDefinition.RegistrationInfo.Description;
+            Settings = _taskDefinition.Settings;
+            Principal = _taskDefinition.Principal;
+        }
+        #endregion
+
+        #region Definitions
+
+        #region Triggers
+        public void SetTriggers(string hour, Repitition reps, string days = "") {
+
+            switch (reps) {
+                case Repitition.Daily: {
+                        DailyTrigger dailyTrigger = new();
+                        dailyTrigger.StartBoundary = DateTime.Today + TimeSpan.FromHours(int.Parse(hour.Split(":")[0])) + TimeSpan.FromMinutes(int.Parse(hour.Split(":")[1]));
+                        dailyTrigger.Enabled = true;
+                        Triggers.Add(dailyTrigger);
+                        _taskDefinition.Triggers.Add(dailyTrigger);
+                        break;
+                    }
+                case Repitition.Weekly: {
+                        WeeklyTrigger weeklyTrigger = new();
+                        weeklyTrigger.Enabled = true;
+                        weeklyTrigger.DaysOfWeek = DaysOftheWeek(days);
+                        weeklyTrigger.StartBoundary = DateTime.Today + TimeSpan.FromHours(int.Parse(hour.Split(":")[0])) + TimeSpan.FromMinutes(int.Parse(hour.Split(":")[1]));
+                        Triggers.Add(weeklyTrigger);
+                        _taskDefinition.Triggers.Add(weeklyTrigger);
+                        break;
+                    }
+                case Repitition.Monthly: {
+                        MonthlyTrigger monthlyTrigger = new();
+                        monthlyTrigger.Enabled = true;
+                        monthlyTrigger.DaysOfMonth = days.Length > 0 ? DaysOfTheMonth(days) : DaysOfTheMonth("1");
+                        monthlyTrigger.MonthsOfYear = MonthsOfTheYear.January | MonthsOfTheYear.February | MonthsOfTheYear.March | MonthsOfTheYear.April | MonthsOfTheYear.May | MonthsOfTheYear.June | MonthsOfTheYear.July | MonthsOfTheYear.August | MonthsOfTheYear.September | MonthsOfTheYear.October | MonthsOfTheYear.November | MonthsOfTheYear.December;
+                        Triggers.Add(monthlyTrigger);
+                        _taskDefinition.Triggers.Add(monthlyTrigger);
+                        break;
+                    }
+            }
+
+        }
+        public void SetTriggers(string[] hours, Repitition reps, string days = "") {
             foreach (string hour in hours) {
-                TaskDailyTriggerrDefine(hour);
+                SetTriggers(hour, reps, days);
             }
         }
-        public void TaskWeeklyTriggerDefine(WeeklyTrigger trig) {
-            this.taskDefinition.Triggers.Add(trig);
-        }
-        public void TaskWeeklyTriggerDefine(string hour, int day) {
-            this.taskDefinition.Triggers.Add(WeeklyTriggerCreate(hour, day));
-        }
-        public void TaskActionsDefine(string app, string? argus, string? location) {
-            ExecAction action = new();
-            action.Path = app;
-            if (argus != null) {
-                action.Arguments = argus;
+        public void SetTriggers(string hour, Repitition reps, int[] days) {
+
+            switch (reps) {
+                case Repitition.Daily: {
+                        DailyTrigger dailyTrigger = new();
+                        dailyTrigger.StartBoundary = DateTime.Today + TimeSpan.FromHours(int.Parse(hour.Split(":")[0])) + TimeSpan.FromMinutes(int.Parse(hour.Split(":")[1]));
+                        dailyTrigger.Enabled = true;
+                        Triggers.Add(dailyTrigger);
+                        _taskDefinition.Triggers.Add(dailyTrigger);
+                        break;
+                    }
+                case Repitition.Weekly: {
+                        WeeklyTrigger weeklyTrigger = new();
+                        weeklyTrigger.Enabled = true;
+                        weeklyTrigger.DaysOfWeek = DaysOftheWeek(days);
+                        weeklyTrigger.StartBoundary = DateTime.Today + TimeSpan.FromHours(int.Parse(hour.Split(":")[0])) + TimeSpan.FromMinutes(int.Parse(hour.Split(":")[1]));
+                        Triggers.Add(weeklyTrigger);
+                        //_taskDefinition.Triggers.Add(weeklyTrigger);
+                        break;
+                    }
+                case Repitition.Monthly: {
+                        MonthlyTrigger monthlyTrigger = new();
+                        monthlyTrigger.Enabled = true;
+                        monthlyTrigger.DaysOfMonth = days.Length > 0 ? DaysOfTheMonth(days) : DaysOfTheMonth("1");
+                        monthlyTrigger.MonthsOfYear = MonthsOfTheYear.January | MonthsOfTheYear.February | MonthsOfTheYear.March | MonthsOfTheYear.April | MonthsOfTheYear.May | MonthsOfTheYear.June | MonthsOfTheYear.July | MonthsOfTheYear.August | MonthsOfTheYear.September | MonthsOfTheYear.October | MonthsOfTheYear.November | MonthsOfTheYear.December;
+                        Triggers.Add(monthlyTrigger);
+                        _taskDefinition.Triggers.Add(monthlyTrigger);
+                        break;
+                    }
             }
-            if (location != null) {
-                action.WorkingDirectory = location;
-            }
-            this.taskDefinition.Actions.Add(action);
         }
-        public void TaskActionsDefine(string[] apps, string?[] argus, string?[] locations) {
-            for (int i = 0; i < apps.Length; i++) {
-                TaskActionsDefine(apps[i], argus[i], locations[i]);
+        public void SetTriggers(string[] hours, Repitition reps, int[] days) {
+            foreach (var hour in hours) {
+                SetTriggers(hour, reps, days);
             }
         }
-        public void TaskWeeklyTriggerDefine(string hour, int[] days) {
-            this.taskDefinition.Triggers.Add(WeeklyTriggerCreate(hour, days));
-        }
-        public void TaskWeeklyTriggerDefine(string[] hours, int[] days) {
-            foreach (string hour in hours) {
-                TaskWeeklyTriggerDefine(hour, days);
-            }
-        }
-        public void RegisterTask() {
-            try {
-                this.serv.RootFolder.RegisterTaskDefinition($"{this.TaskPath}\\{this.TaskName}", this.taskDefinition);
-            } catch {
-                this.serv.RootFolder.RegisterTaskDefinition(this.TaskPath, this.taskDefinition);
+        public void SetTriggers(StartAt start, string[]? events = null) {
+            switch (start) {
+                case StartAt.None:
+                    break;
+                case StartAt.Event: {
+                        if (events != null && events.Length > 1 && events.Length <= 3) {
+                            EventTrigger trigger = new();
+                            trigger.Enabled = true;
+                            if (events[2] != null)
+                                trigger.SetBasic(events[0], events[1], int.Parse(events[2]));
+                            else
+                                trigger.SetBasic(events[0], events[1], null);
+                            Triggers.Add(trigger);
+                            _taskDefinition.Triggers.Add(trigger);
+                        }
+                        break;
+                    }
+                case StartAt.Startup: {
+                        BootTrigger trigger = new BootTrigger();
+                        Triggers.Add(trigger);
+                        _taskDefinition.Triggers.Add(trigger);
+                        break;
+                    }
+                default: {
+                        LogonTrigger trigger = new();
+                        Triggers.Add(trigger);
+                        _taskDefinition.Triggers.Add(trigger);
+                        break;
+                    }
             }
 
-            //TaskService.Instance.RootFolder.RegisterTaskDefinition($"{this.TaskPath}\\{this.TaskName}", this.taskDefinition, TaskCreation.CreateOrUpdate, "סארט", null, TaskLogonType.Password);
+        }
+        #endregion
 
-            //serv.RootFolder.RegisterTaskDefinition(TaskPath);
+        #region Actions
+        public void SetActions(string path, string argumentList = "", string workingDirectory = "") {
+            ExecAction action = new ExecAction();
+            action.Path = path;
+            action.Arguments = argumentList;
+            action.WorkingDirectory = workingDirectory;
+            Actions.Add(action);
+
+            _taskDefinition.Actions.Add(action);
+        }
+        public void SetActions(string[] path, string[]? argumentList = null, string workingDirectory = "") {
+            string[] arguments = new string[path.Length];
+            if (argumentList.Length < path.Length) {
+                arguments = new string[path.Length];
+                for (int i = 0; i < argumentList.Length; i++) {
+                    arguments[i] = argumentList[i];
+                }
+                for (int i = argumentList.Length; i < arguments.Length; i++) {
+                    arguments[i] = "";
+                }
+            } else if (argumentList.Length > path.Length) {
+                arguments = new string[path.Length];
+                for (int i = argumentList.Length; i < arguments.Length; i++) {
+                    arguments[i] = argumentList[i];
+                }
+            }
+            var pathArgs = path.Length == argumentList.Length ? path.Zip(argumentList, (Path, Argu) => new { ActPath = Path, ActArg = Argu }) : path.Zip(arguments, (Path, Argu) => new { ActPath = Path, ActArg = Argu });
+            foreach (var ar in pathArgs) {
+                SetActions(ar.ActPath, ar.ActArg, workingDirectory);
+            }
+        }
+        #endregion
+
+        #region Pricipal
+        public void SetPrincipal(bool Highest = false, bool User = true) {
+            Principal.Id = $"{Environment.MachineName}\\{Environment.UserName}";
+            Principal.LogonType = User ? TaskLogonType.Password : TaskLogonType.S4U;
+            Principal.RunLevel = Highest ? TaskRunLevel.Highest : TaskRunLevel.LUA;
+            _taskDefinition.Principal.RunLevel = Highest ? TaskRunLevel.Highest : TaskRunLevel.LUA;
+            _taskDefinition.Principal.LogonType = User ? TaskLogonType.Password : TaskLogonType.S4U;
+        }
+        #endregion
+
+        #region Settings
+
+        public void SetSettings(bool batteries = true, bool hidden = false, bool startWhenAvailable = true, bool enable = true) {
+            (Settings.StopIfGoingOnBatteries, Settings.DisallowStartIfOnBatteries) = (!batteries, !batteries);
+            Settings.Hidden = hidden;
+            Settings.StartWhenAvailable = startWhenAvailable;
+            Settings.AllowDemandStart = true;
+            Settings.Enabled = enable;
+            (_taskDefinition.Settings.StopIfGoingOnBatteries, _taskDefinition.Settings.DisallowStartIfOnBatteries) = (!batteries, !batteries);
+            _taskDefinition.Settings.Hidden = hidden;
+            _taskDefinition.Settings.StartWhenAvailable = startWhenAvailable;
+            _taskDefinition.Settings.AllowDemandStart = true;
+            _taskDefinition.Settings.Enabled = enable;
+
+        }
+
+        #endregion
+
+        #endregion
+
+        #region SetupTask
+        public void SetTask(string description = "") {
+            TaskDescription = description;
+            TaskDefinition task = ScTask.NewTask();
+            task.Triggers.AddRange(Triggers);
+            (task.Principal.RunLevel, task.Principal.LogonType, task.Principal.UserId) = (Principal.RunLevel, Principal.LogonType, Principal.UserId);
+            task.Actions.AddRange(Actions);
+            (task.Settings.DisallowStartIfOnBatteries, task.Settings.StopIfGoingOnBatteries, task.Settings.StartWhenAvailable, task.Settings.Enabled, task.Settings.Hidden, task.Settings.AllowDemandStart) = (Settings.DisallowStartIfOnBatteries, Settings.StopIfGoingOnBatteries, Settings.StartWhenAvailable, Settings.Enabled, Settings.Hidden, Settings.AllowDemandStart);
+            task.RegistrationInfo.Description = TaskDescription;
+            task.RegistrationInfo.Author ??= $"{Environment.MachineName}\\{Environment.UserName}";
+            ScTask.RootFolder.RegisterTaskDefinition($"\\{TaskPath}\\{TaskName}", task);
+        }
+        public void ExportTask(string Path) {
+
+            var settings = new JsonSerializerSettings() { NullValueHandling = NullValueHandling.Ignore, MissingMemberHandling = MissingMemberHandling.Ignore };
+            settings.Error += (o, args) => {
+                if (args.ErrorContext.Error.InnerException is NotImplementedException)
+                    args.ErrorContext.Handled = true;
+            };
+
+            string data = JsonConvert.SerializeObject(this, Formatting.Indented, settings);
+            System.IO.File.WriteAllText(Path, data);
+        }
+        private void SetTaskerBase() {
+            foreach (var trig in Triggers) {
+                if (trig.GetType().Name.Equals("EventTrigger")) {
+                    //taskerBase.Triggers["EventTrigger"].Add(new Dictionary<string, object> { ("event", new string[] { } })
+
+                }
+            }
+        }
+        public static void ImportTask(string Path) {
+            string data = System.IO.File.ReadAllText(Path);
+            Tasker tasker = Newtonsoft.Json.JsonConvert.DeserializeObject<Tasker>(data);
+            tasker.SetTask();
+        }
+        public static Tasker ExportTask(string taskName, string taskPath = "") {
+            TaskService service = new();
+            var tsk = service.FindTask(taskName, true);
+            Tasker tasker = new(taskName, taskPath);
+            tasker.Actions = tsk.Definition.Actions;
+            tasker.Settings = tsk.Definition.Settings;
+            tasker.Triggers = tsk.Definition.Triggers;
+            tasker.Principal = tsk.Definition.Principal;
+            tasker.TaskDescription = tsk.Definition.RegistrationInfo.Description;
+            tasker.Author = tsk.Definition.RegistrationInfo.Author;
+            return tasker;
         }
         #endregion
 
         #region Helpers
-        private System.DateTime Day(int day) {
-            if (day > 0 && day < 8) {
-                return new System.DateTime(1977, 12, 31).AddDays(day);
-            }
-            return new System.DateTime(1978, 1, 1);
-        }
-        private System.DateTime HourTime(string time) {
-            return System.DateTime.Parse(time);
-        }
-        private WeeklyTrigger WeeklyTriggerCreate(string hour, int day) {
+        private DaysOfTheWeek DaysOftheWeek(string days) {
 
-            WeeklyTrigger trigger = new();
-            DaysOfTheWeek dayS;
-            switch (day) {
-                case 1: {
-                        dayS = DaysOfTheWeek.Sunday;
-                        break;
-                    }
-                case 2: {
-                        dayS = DaysOfTheWeek.Monday;
-                        break;
-                    }
-                case 3: {
-                        dayS = DaysOfTheWeek.Tuesday;
-                        break;
-                    }
-                case 4: {
-                        dayS = DaysOfTheWeek.Wednesday;
-                        break;
+            DaysOfTheWeek? day = null;
+            foreach (int dayOfWeek in new int[] { 0, 1, 2, 3, 4, 5, 6 }) {
 
-                    }
-                case 5: {
-                        dayS = DaysOfTheWeek.Thursday;
-                        break;
-
-                    }
-                case 6: {
-                        dayS = DaysOfTheWeek.Friday;
-                        break;
-                    }
-                default: {
-                        dayS = DaysOfTheWeek.Saturday;
-                        break;
-                    }
-            }
-            trigger.DaysOfWeek = dayS;
-            trigger.StartBoundary = System.DateTime.Parse(hour, System.Globalization.CultureInfo.InvariantCulture);
-            return trigger;
-        }
-        private WeeklyTrigger WeeklyTriggerCreate(string hour, int[] day) {
-
-            WeeklyTrigger trigger = new();
-            DaysOfTheWeek[] dayS = new DaysOfTheWeek[day.Length];
-            for (int i = 0; i < day.Length; i++) {
-
-                switch (day[i]) {
-                    case 1: {
-                            dayS[i] = DaysOfTheWeek.Sunday;
-                            break;
-                        }
-                    case 2: {
-                            dayS[i] = DaysOfTheWeek.Monday;
-                            break;
-                        }
-                    case 3: {
-                            dayS[i] = DaysOfTheWeek.Tuesday;
-                            break;
-                        }
-                    case 4: {
-                            dayS[i] = DaysOfTheWeek.Wednesday;
-                            break;
-
-                        }
-                    case 5: {
-                            dayS[i] = DaysOfTheWeek.Thursday;
-                            break;
-
-                        }
-                    case 6: {
-                            dayS[i] = DaysOfTheWeek.Friday;
-                            break;
-                        }
-                    default: {
-                            dayS[i] = DaysOfTheWeek.Saturday;
-                            break;
-                        }
+                if (day == null && days.Contains($"{dayOfWeek}")) {
+                    day = (DaysOfTheWeek)dayOfWeek;
+                } else if (days.Contains($"{dayOfWeek}")) {
+                    day |= (DaysOfTheWeek)dayOfWeek;
                 }
             }
-            foreach (var d in dayS) {
-                trigger.DaysOfWeek |= d;
+            return (DaysOfTheWeek)day;
+
+        }
+        private DaysOfTheWeek DaysOftheWeek(int[] days) {
+            DaysOfTheWeek? day = null;
+            foreach (int dayOfWeek in days) {
+                if (dayOfWeek < 7) {
+                    if (day == null) {
+                        day = (DaysOfTheWeek)dayOfWeek;
+                    } else {
+                        day |= (DaysOfTheWeek)dayOfWeek;
+                    }
+                }
             }
-            trigger.StartBoundary = System.DateTime.Parse(hour, System.Globalization.CultureInfo.InvariantCulture);
-            return trigger;
+            return (DaysOfTheWeek)day;
+        }
+        private int[] DaysOfTheMonth(string days) {
+            return days.Split(",").Select(x => int.Parse(x)).Where(y => y > 0 && y < 32).ToArray();
+            //List<int> daysOfTheMonth = new List<int>();
+            //foreach (string day in days.Split(","))
+            //{
+            //    if (int.Parse(day) > 0 && int.Parse(day) < 32)
+            //    {
+            //        daysOfTheMonth.Add(int.Parse(day));
+            //    }
+            //}
+            //return daysOfTheMonth.ToArray();
+        }
+        private int[] DaysOfTheMonth(int[] days) {
+            List<int> daysOfTheMonth = new(days);
+            return daysOfTheMonth.Where(x => x > 0 && x < 32).ToArray();
+        }
+        public void Mu(string days) {
+            Console.WriteLine(DaysOfTheMonth(days));
         }
         #endregion
-        //public void TaskMonthlyTriggerDefine(int month, int day, string hour)
-        //{
-        //    MonthlyTrigger trigger = new();
-        //    int[] d = new int[] { day };
-        //    trigger.DaysOfMonth = d;
-        //    trigger.
-        //}
-
-        //public void TaskTriggersDefine(int[] days, string[] hours)
-        //{
-        //    Trigger trigger;
-        //    DateTime[] hrs = new DateTime[hours.Length];
-        //    DateTime[] dates = new System.DateTime[days.Length];
-        //    for (int i = 0; i < days.Length; i++)
-        //    {
-        //        foreach(string hor in hours)
-        //        {
-        //        if (days[i] > 0 && days[i] < 8)
-        //        {
-        //            dates[i] = System.DateTime.Parse($"0{days}/01/1978",null);
-
-        //                int horr=Int32.Parse( hor.Split(":")[0]);
-        //                int minn = Int32.Parse(hor.Split(":")[1]);
-        //                dates[i] = dates[i].AddHours(horr);
-        //                dates[i].AddMinutes(minn);
-        //        }
-
-        //        }
-        //    }
-
-        //    trigger.StartBoundary = new DateTime[dates.Length];
-        //}
-        #region Exports
-        private static string TaskNameExport(Tasker task) {
-            return task.TaskName;
-        }
-        private static string TaskPathExport(Tasker task) {
-            return task.TaskPath;
-        }
-        //private static string
-        #endregion
-        #region Jsoner
-        public static void ExportJson(string path, Tasker task) {
-            var tas = Newtonsoft.Json.JsonConvert.SerializeObject(task, Newtonsoft.Json.Formatting.Indented);
-            System.IO.File.WriteAllText(path, tas);
-        }
-        public void ExportJson() {
-            JObject Task = new();
-            Task.Add(new JProperty("TaskName", this.TaskName));
-            Task.Add(new JProperty("TaskPath", this.TaskPath));
-            JArray actions = new();
-            foreach (var act in this.taskDefinition.Actions) {
-
-                JArray array = new();
-                array.Add(((ExecAction)act).Path);
-                array.Add(((ExecAction)act).Arguments);
-                array.Add(((ExecAction)act).WorkingDirectory);
-                actions.Add(array);
-            }
-            foreach (var trig in this.taskDefinition.Triggers) {
-                JArray triggers = new();
-                // TODO: continue
-            }
-            //Task.Add(new JProperty())
-        }
-        public static TriggerCollection GetDailyTrigger(JObject triggers) {
-            TaskService task = new();
-
-            TriggerCollection result = task.NewTask().Triggers;
-
-            foreach (var trig in triggers["dayly"]) {
-                DailyTrigger trigger = new();
-                int h = int.Parse(trig.ToString().Split(":")[0]);
-                int m = int.Parse(trig.ToString().Split(":")[1]);
-                trigger.StartBoundary = System.DateTime.Today + System.TimeSpan.FromHours(h) + System.TimeSpan.FromMinutes(m);
-                trigger.Repetition.Duration = System.TimeSpan.FromDays(1);
-                trigger.Repetition.Interval = System.TimeSpan.FromMinutes(1);
-                result.Add(trigger);
-            }
-            return result;
-        }
-        //public static TriggerCollection GetWeeklyTrigger(JObject triggers)
-        //{
-        //    TaskService task = new();
-
-        //    TriggerCollection result = task.NewTask().Triggers;
-        //    foreach(var trigger in triggers["weekly"])
-        //    {
-
-        //    }
-        //}
-        public static void ImportTasks(string jsonFile) {
-
-            JObject SchedTask = (JObject)Newtonsoft.Json.JsonConvert.DeserializeObject(System.IO.File.ReadAllText(jsonFile));
-            Tasker tasker = new(SchedTask["TaskName"].ToString(), SchedTask["TaskPath"].ToString(), SchedTask["Description"].ToString());
-            var trigs = SchedTask["triggers"];
-        }
     }
-    #endregion
 }
