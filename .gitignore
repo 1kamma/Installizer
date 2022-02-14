@@ -10,4 +10,6 @@ bin/*
 .vs/*
 /.vs/*
 /Inst/bin/*
+/Inst/obj
+/Installizer/obj
 */*/Release/
