@@ -67,8 +67,10 @@ namespace Installizer {
         #endregion
 
         #region Constructors
-        public Tasker(JsonConstructorAttribute jsonConstructor) {
+        [JsonConstructor]
+        public Tasker(string filePath) {
             //foreach(var trig in jsonConstructor.)
+            var fileRead = JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(System.IO.File.ReadAllText(filePath));
 
         }
         public Tasker(string Name, string Path) {
@@ -122,7 +124,7 @@ namespace Installizer {
                         dailyTrigger.StartBoundary = DateTime.Today + TimeSpan.FromHours(int.Parse(hour.Split(":")[0])) + TimeSpan.FromMinutes(int.Parse(hour.Split(":")[1]));
                         dailyTrigger.Enabled = true;
                         Triggers.Add(dailyTrigger);
-                        _taskDefinition.Triggers.Add(dailyTrigger);
+                        //_taskDefinition.Triggers.Add(Triggers);
                         break;
                     }
                 case Repitition.Weekly: {
@@ -131,7 +133,7 @@ namespace Installizer {
                         weeklyTrigger.DaysOfWeek = DaysOftheWeek(days);
                         weeklyTrigger.StartBoundary = DateTime.Today + TimeSpan.FromHours(int.Parse(hour.Split(":")[0])) + TimeSpan.FromMinutes(int.Parse(hour.Split(":")[1]));
                         Triggers.Add(weeklyTrigger);
-                        _taskDefinition.Triggers.Add(weeklyTrigger);
+                        //_taskDefinition.Triggers.Add(weeklyTrigger);
                         break;
                     }
                 case Repitition.Monthly: {
@@ -140,7 +142,7 @@ namespace Installizer {
                         monthlyTrigger.DaysOfMonth = days.Length > 0 ? DaysOfTheMonth(days) : DaysOfTheMonth("1");
                         monthlyTrigger.MonthsOfYear = MonthsOfTheYear.January | MonthsOfTheYear.February | MonthsOfTheYear.March | MonthsOfTheYear.April | MonthsOfTheYear.May | MonthsOfTheYear.June | MonthsOfTheYear.July | MonthsOfTheYear.August | MonthsOfTheYear.September | MonthsOfTheYear.October | MonthsOfTheYear.November | MonthsOfTheYear.December;
                         Triggers.Add(monthlyTrigger);
-                        _taskDefinition.Triggers.Add(monthlyTrigger);
+                        //_taskDefinition.Triggers.Add(monthlyTrigger);
                         break;
                     }
             }
@@ -159,7 +161,8 @@ namespace Installizer {
                         dailyTrigger.StartBoundary = DateTime.Today + TimeSpan.FromHours(int.Parse(hour.Split(":")[0])) + TimeSpan.FromMinutes(int.Parse(hour.Split(":")[1]));
                         dailyTrigger.Enabled = true;
                         Triggers.Add(dailyTrigger);
-                        _taskDefinition.Triggers.Add(dailyTrigger);
+                        //_taskDefinition.Triggers;
+                        //_taskDefinition.Triggers.Add(dailyTrigger);
                         break;
                     }
                 case Repitition.Weekly: {
@@ -177,7 +180,7 @@ namespace Installizer {
                         monthlyTrigger.DaysOfMonth = days.Length > 0 ? DaysOfTheMonth(days) : DaysOfTheMonth("1");
                         monthlyTrigger.MonthsOfYear = MonthsOfTheYear.January | MonthsOfTheYear.February | MonthsOfTheYear.March | MonthsOfTheYear.April | MonthsOfTheYear.May | MonthsOfTheYear.June | MonthsOfTheYear.July | MonthsOfTheYear.August | MonthsOfTheYear.September | MonthsOfTheYear.October | MonthsOfTheYear.November | MonthsOfTheYear.December;
                         Triggers.Add(monthlyTrigger);
-                        _taskDefinition.Triggers.Add(monthlyTrigger);
+                        //_taskDefinition.Triggers.Add(monthlyTrigger);
                         break;
                     }
             }
@@ -317,7 +320,7 @@ namespace Installizer {
         }
         public static void ImportTask(string Path) {
             string data = System.IO.File.ReadAllText(Path);
-            Tasker tasker = Newtonsoft.Json.JsonConvert.DeserializeObject<Tasker>(data);
+            Tasker tasker = JsonConvert.DeserializeObject<Tasker>(data);
             tasker.SetTask();
         }
         public static Tasker ExportTask(string taskName, string taskPath = "") {
@@ -382,5 +385,17 @@ namespace Installizer {
             Console.WriteLine(DaysOfTheMonth(days));
         }
         #endregion
+        private Repitition GetRepitition(Newtonsoft.Json.Linq.JObject Trig) {
+            switch (int.Parse(Trig["TriggerType"].ToString())) {
+                case 2:
+                    return Repitition.Daily;
+                case 3:
+                    return Repitition.Weekly;
+                case 4:
+                    return Repitition.Monthly;
+                default:
+                    return Repitition.None;
+            }
+        }
     }
 }
